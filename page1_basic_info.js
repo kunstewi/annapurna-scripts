@@ -47,6 +47,20 @@ function normRaw(s) {
   return String(s).trim();
 }
 
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function waitFor(check, timeoutMs = 10000, intervalMs = 250) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const value = check();
+    if (value) return value;
+    await sleep(intervalMs);
+  }
+  return null;
+}
+
 function normDOB(s) {
   s = String(s).trim();
   // Already DD/MM/YYYY
@@ -147,6 +161,24 @@ function selectOption(el, text) {
   return false;
 }
 
+function hasUsableOptions(el) {
+  if (!el || el.tagName !== "SELECT") return false;
+  const options = Array.from(el.options || []);
+  return options.some((o) => {
+    const text = String(o.text || "").trim();
+    const value = String(o.value || "").trim();
+    return text && !/^select\b/i.test(text) && (value || text);
+  });
+}
+
+async function waitForSelectReady(keywords, timeoutMs = 10000) {
+  return waitFor(() => {
+    const field = findByLabel(keywords, "SELECT");
+    if (!field) return null;
+    return hasUsableOptions(field) ? field : null;
+  }, timeoutMs);
+}
+
 function clickRadio(value) {
   const val = String(value).toLowerCase().trim();
   for (const r of document.querySelectorAll('input[type="radio"]')) {
@@ -170,7 +202,7 @@ async function fillSearch(el, text) {
   if (!el || !text) return;
   el.focus();
   fill(el, text);
-  await new Promise((r) => setTimeout(r, 1000));
+  await sleep(1200);
   const opt = document.querySelector(
     'mat-option, .ng-option, [role="option"], .dropdown-item, li[class*="option"], .autocomplete-item',
   );
@@ -178,9 +210,7 @@ async function fillSearch(el, text) {
     opt.click();
     return true;
   }
-  console.warn(
-    `⚠️  Constituency dropdown didn't appear for "${text}" — select manually`,
-  );
+  // Some pages keep the typed value without opening a suggestion list.
   return false;
 }
 
@@ -220,6 +250,22 @@ async function fillPage1() {
   const log = (label, val, ok = true) =>
     console.log(`  ${ok ? "✓" : "⚠"} ${label.padEnd(22)} → "${val}"`);
   const warn = (label, val) => log(label, val, false);
+  const selectField = async (keywords, value, label, waitMs = 900) => {
+    if (!value) return null;
+    const field = await waitForSelectReady(keywords, 12000);
+    if (!field) {
+      warn(label, "field not found");
+      return null;
+    }
+    const ok = selectOption(field, value);
+    if (ok) {
+      log(label, value);
+      if (waitMs) await sleep(waitMs);
+    } else {
+      warn(label, value);
+    }
+    return field;
+  };
 
   // ── Strategy: find each field by label text, not index ──────
   // This is immune to index shifts from hidden/dynamic fields
@@ -331,56 +377,52 @@ async function fillPage1() {
   } else warn("Address", "field not found");
 
   // District
-  const fDist = f.find(
-    (el) =>
-      el.tagName === "SELECT" &&
-      Array.from(el.options).some((o) =>
-        /birbhum|purba|paschim|kolkata|malda|murshi/i.test(o.text),
-      ),
-  );
-  if (fDist && DATA.district) {
-    selectOption(fDist, DATA.district);
-    log("District", DATA.district);
-  }
+  await selectField(["district"], DATA.district, "District");
 
   // Area Type
-  const fArea = f.find(
-    (el) =>
-      el.tagName === "SELECT" &&
-      Array.from(el.options).some((o) => /rural|urban/i.test(o.text)),
-  );
-  if (fArea) {
-    selectOption(fArea, normArea(DATA.area_type));
-    log("Area Type", normArea(DATA.area_type));
-  } else warn("Area Type", "field not found");
+  await selectField(["area type"], normArea(DATA.area_type), "Area Type");
 
   // Pincode
-  const fPin = f.find(
-    (el) =>
-      el.tagName === "SELECT" &&
-      Array.from(el.options).some((o) => /\d{6}/.test(o.text || o.value)),
-  );
+  const fPin = await waitForSelectReady(["pincode", "pin code", "postal"], 12000);
   if (fPin) {
-    selectOption(fPin, DATA.pincode);
-    log("Pincode", DATA.pincode);
+    if (selectOption(fPin, DATA.pincode)) {
+      log("Pincode", DATA.pincode);
+      await sleep(900);
+    } else {
+      warn("Pincode", DATA.pincode);
+    }
   } else {
     const fPinText = findByLabel(["pincode", "pin code", "postal"]);
     if (fPinText) {
       fill(fPinText, DATA.pincode);
       log("Pincode", DATA.pincode);
+      await sleep(900);
     } else warn("Pincode", "field not found");
   }
 
+  // Post Office
+  await selectField(["post office"], DATA.post_office, "Post Office");
+
   // Police Station
-  const fPolice = f.find(
-    (el) =>
-      el.tagName === "SELECT" &&
-      Array.from(el.options).some((o) => /police|station|ps /i.test(o.text)),
+  await selectField(
+    ["police station", "ps"],
+    DATA.police_station,
+    "Police Station",
   );
-  if (fPolice) {
-    selectOption(fPolice, DATA.police_station);
-    log("Police Station", DATA.police_station);
-  } else warn("Police Station", "field not found");
+
+  // Block / Municipality
+  await selectField(
+    ["block / mc name", "block/mc", "block", "mc name"],
+    DATA.block_mc_name,
+    "Block / MC Name",
+  );
+
+  // GP / Ward
+  await selectField(
+    ["gp / ward name", "gp/ward", "gp", "ward name"],
+    DATA.gp_ward_name,
+    "GP / Ward Name",
+  );
 
   // EPIC No
   const fEpic = findByLabel(["epic", "voter"]);
@@ -391,17 +433,20 @@ async function fillPage1() {
 
   // Constituency (autocomplete search)
   const fConst =
-    findByLabel(["constituency", "assembly"]) ||
-    f.find((el) => el.placeholder?.toLowerCase().includes("constituency"));
+    findByLabel(["assembly constituency"]) ||
+    f.find((el) =>
+      el.placeholder?.toLowerCase().includes("search constituency"),
+    );
   if (fConst) {
-    await fillSearch(fConst, DATA.constituency);
-    log("Constituency", DATA.constituency);
+    const picked = await fillSearch(fConst, DATA.constituency);
+    log(
+      "Constituency",
+      picked ? DATA.constituency : `${DATA.constituency} (typed)`,
+    );
   } else warn("Constituency", "field not found");
 
   // Part No
-  const fPart =
-    findByLabel(["part no", "part number"]) ||
-    f.find((el) => el.placeholder?.toLowerCase().includes("no."));
+  const fPart = findByLabel(["part no", "part number"]);
   if (fPart) {
     fill(fPart, normRaw(DATA.part_no));
     log("Part No", DATA.part_no);
@@ -413,4 +458,4 @@ async function fillPage1() {
   );
 }
 
-fillPage1();
+void fillPage1();

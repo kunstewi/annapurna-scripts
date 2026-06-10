@@ -6,15 +6,15 @@
 // ─── YOUR DATA — type casually, all lowercase is fine ────────
 const DATA = {
   hof_name: "kanai kumar", // any case → auto UPPER CASE
-  dob: "20/11/1999", // any format: 20/11/1999 or 1999-11-20
+  dob: "26/01/2005", // any format: 20/11/1999 or 1999-11-20
   gender: "male", // male / female / other
   category: "ur", // ur/gen → UR (Unreserved), sc, st, obc-a, obc-b
   religion: "hindu", // hindu / islam / christian etc
-  mobile: "9876543210",
+  mobile: "8509546605",
   total_members: "4",
   disability: "n", // y/yes/n/no
   aadhaar: "221373659682", // spaces ok, auto-stripped
-  address: "village rampur, po suri",
+  address: "chinpai, birbhum",
   district: "birbhum",
   area_type: "r", // r/rural/u/urban
   pincode: "731104",
@@ -22,7 +22,7 @@ const DATA = {
   police_station: "sadaipur ps",
   block_mc_name: "dubrajpur", // new added
   gp_ward_name: "chinpai", // new added
-  epic_no: "rjr8973428", // auto UPPER CASE
+  epic_no: "rjr1830565", // auto UPPER CASE
   constituency: "285 - Suri",
   part_no: "",
 };

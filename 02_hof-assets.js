@@ -206,7 +206,7 @@ function clickRadioInGroup(groupIndex, value) {
   return true;
 }
 
-async function selectField(keywords, value, label, waitMs = 800) {
+async function selectField(keywords, value, label) {
   if (value == null || value === "") return null;
 
   const field = await waitForSelectReady(keywords, 12000);
@@ -218,7 +218,6 @@ async function selectField(keywords, value, label, waitMs = 800) {
   const ok = selectOption(field, value);
   if (ok) {
     console.log(`  ✓ ${label.padEnd(32)} -> "${value}"`);
-    if (waitMs) await sleep(waitMs);
   } else {
     console.warn(`⚠️  ${label} -> "${value}"`);
   }
@@ -252,12 +251,10 @@ async function fillHofAssetsPage() {
 
   if (clickRadioInGroup(0, radio1)) {
     console.log(`  ✓ ${"Radio Group 1".padEnd(32)} -> "${radio1}"`);
-    await sleep(700);
   }
 
   if (clickRadioInGroup(1, radio2)) {
     console.log(`  ✓ ${"Radio Group 2".padEnd(32)} -> "${radio2}"`);
-    await sleep(700);
   }
 
   await fillTextField(

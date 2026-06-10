@@ -202,9 +202,13 @@ async function fillSearch(el, text) {
   if (!el || !text) return;
   el.focus();
   fill(el, text);
-  await sleep(1200);
-  const opt = document.querySelector(
-    'mat-option, .ng-option, [role="option"], .dropdown-item, li[class*="option"], .autocomplete-item',
+  const opt = await waitFor(
+    () =>
+      document.querySelector(
+        'mat-option, .ng-option, [role="option"], .dropdown-item, li[class*="option"], .autocomplete-item',
+      ),
+    1200,
+    100,
   );
   if (opt) {
     opt.click();
@@ -250,7 +254,7 @@ async function fillPage1() {
   const log = (label, val, ok = true) =>
     console.log(`  ${ok ? "✓" : "⚠"} ${label.padEnd(22)} → "${val}"`);
   const warn = (label, val) => log(label, val, false);
-  const selectField = async (keywords, value, label, waitMs = 900) => {
+  const selectField = async (keywords, value, label) => {
     if (!value) return null;
     const field = await waitForSelectReady(keywords, 12000);
     if (!field) {
@@ -260,7 +264,6 @@ async function fillPage1() {
     const ok = selectOption(field, value);
     if (ok) {
       log(label, value);
-      if (waitMs) await sleep(waitMs);
     } else {
       warn(label, value);
     }
@@ -387,7 +390,6 @@ async function fillPage1() {
   if (fPin) {
     if (selectOption(fPin, DATA.pincode)) {
       log("Pincode", DATA.pincode);
-      await sleep(900);
     } else {
       warn("Pincode", DATA.pincode);
     }
@@ -396,7 +398,6 @@ async function fillPage1() {
     if (fPinText) {
       fill(fPinText, DATA.pincode);
       log("Pincode", DATA.pincode);
-      await sleep(900);
     } else warn("Pincode", "field not found");
   }
 

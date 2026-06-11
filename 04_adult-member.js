@@ -1,33 +1,3 @@
-# Page Scripts — How to Use
-
-## For pages I've already built scripts for:
-1. Open the form page in Chrome
-2. Open DevTools → Console (Cmd+Option+J)
-3. Open the script file in any text editor
-4. Select all (Cmd+A) → Copy
-5. Paste into Console → Enter
-6. Done ✅
-
-## For NEW pages I haven't built yet:
-1. Navigate to the new page/section
-2. Open Console
-3. Paste the contents of INSPECTOR.js → Enter
-4. Copy the output
-5. Send it to Claude → get a new fill script in minutes
-
-## Scripts available:
-- page1_basic_info.js     → Basic Info + Aadhaar + Address + Voter Card (Page 1)
-- page2_ration_card.js    → (build after sharing Page 2 inspector output)
-- page3_assets.js         → (build after sharing Page 3 inspector output)
-- page4_income.js         → (build after sharing Page 4 inspector output)
-- page5_identity_docs.js  → (build after sharing Page 5 inspector output)
-- page6_govt_schemes.js   → (build after sharing Page 6 inspector output)
-
-## Updating your data:
-Each script has a DATA block at the top — only edit that section.
-The rest of the script handles the form logic automatically.
-
-```js
 // ============================================================
 // ANNAPURNA BHANDAR — ADULT MEMBER PAGE
 // Paste entire script in DevTools Console -> Enter
@@ -44,13 +14,15 @@ const DATA = {
   mobile: "8509546605",
 
   // Inspector only exposed "Yes / No" here, not the actual question text.
-  // Keep this flexible; if needed you can also use radio_group_1 instead.
+  // Keep this flexible; you can also use radio_group_1 / mobile_radio aliases.
   yes_no_after_mobile: "No",
 
   aadhaar: "221373659682", // spaces ok, auto-stripped
-  epic_no: "rjr98432", // auto UPPER CASE
-  assembly_constituency: "", // e.g. 285 - Suri
-  constituency_no: "", // field with placeholder "No."
+
+  // These are only needed when DOB is 18+ and the voter block appears.
+  epic_no: "RJR98432", // auto UPPER CASE
+  assembly_constituency: "285", // e.g. 1 - Mekliganj
+  constituency_no: "", // field near label/placeholder "No."
   part_no: "",
 };
 
@@ -104,6 +76,50 @@ function normDateInputValue(value) {
   const parts = dob.split("/");
   if (parts.length !== 3) return dob;
   return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+}
+
+function parseDOB(value) {
+  const dob = normDOB(value);
+  const parts = dob.split("/");
+  if (parts.length !== 3) return null;
+
+  const day = Number(parts[0]);
+  const month = Number(parts[1]);
+  const year = Number(parts[2]);
+  if (!day || !month || !year) return null;
+
+  const parsed = new Date(year, month - 1, day);
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function getAgeFromDOB(value) {
+  const dob = parseDOB(value);
+  if (!dob) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  const dayDiff = today.getDate() - dob.getDate();
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1;
+  }
+
+  return age;
+}
+
+function isAdultByDOB(value) {
+  const age = getAgeFromDOB(value);
+  return age == null ? null : age >= 18;
 }
 
 function normMemberType(value) {
@@ -181,7 +197,7 @@ function getModel() {
     yes_no_after_mobile:
       DATA.yes_no_after_mobile ?? DATA.radio_group_1 ?? DATA.mobile_radio ?? "",
     aadhaar: DATA.aadhaar ?? DATA.aadhaar_no ?? DATA.aadhar ?? "",
-    epic_no: DATA.epic_no ?? DATA.epic ?? DATA.voter_no ?? "",
+    epic_no: DATA.epic_no ?? DATA.epic ?? DATA.epic_id ?? DATA.voter_no ?? "",
     assembly_constituency:
       DATA.assembly_constituency ?? DATA.constituency ?? DATA.ac_name ?? "",
     constituency_no:
@@ -212,14 +228,7 @@ function isTextLikeField(el) {
   if (el.tagName !== "INPUT") return false;
 
   const type = String(el.type || "").toLowerCase();
-  return [
-    "",
-    "text",
-    "tel",
-    "search",
-    "number",
-    "email",
-  ].includes(type);
+  return ["", "text", "tel", "search", "number", "email"].includes(type);
 }
 
 function getVisibleTextLikeFields() {
@@ -266,9 +275,8 @@ function findByLabel(keywords, type = null) {
 
   for (const el of getFields()) {
     if (type && el.tagName !== type && el.type !== type) continue;
-    const haystacks = getFieldHintBlob(el);
-
-    if (wanted.some((keyword) => haystacks.includes(keyword))) return el;
+    const haystack = getFieldHintBlob(el);
+    if (wanted.some((keyword) => haystack.includes(keyword))) return el;
   }
 
   return null;
@@ -298,8 +306,7 @@ function findBestTextField({
 
     let score = 0;
     for (const keyword of wanted) {
-      if (!keyword) continue;
-      if (blob.includes(keyword)) score += 10;
+      if (keyword && blob.includes(keyword)) score += 10;
     }
 
     if (preferredIndex != null) {
@@ -402,27 +409,69 @@ async function waitForSelectByOptionText(keywords, timeoutMs = 2000) {
   return waitFor(() => findSelectByOptionText(keywords), timeoutMs, 100);
 }
 
+function getVisibleAutocompleteOptions() {
+  return Array.from(
+    document.querySelectorAll(
+      'mat-option, .ng-option, [role="option"], .dropdown-item, li[class*="option"], .autocomplete-item',
+    ),
+  ).filter((el) => el.getBoundingClientRect().height > 0);
+}
+
+function getOptionText(el) {
+  return String(el?.textContent || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function dispatchKey(el, key) {
+  ["keydown", "keyup"].forEach((type) => {
+    el.dispatchEvent(
+      new KeyboardEvent(type, {
+        key,
+        code: key,
+        bubbles: true,
+      }),
+    );
+  });
+}
+
+function clickElement(el) {
+  if (!el) return false;
+  ["mouseenter", "mousemove", "mousedown", "mouseup", "click"].forEach((type) => {
+    el.dispatchEvent(new MouseEvent(type, { bubbles: true }));
+  });
+  if (typeof el.click === "function") el.click();
+  return true;
+}
+
 async function fillSearch(el, text) {
   if (!el || !text) return false;
 
   el.focus();
   fill(el, text);
+  dispatchKey(el, "ArrowDown");
 
-  const option = await waitFor(
-    () =>
-      document.querySelector(
-        'mat-option, .ng-option, [role="option"], .dropdown-item, li[class*="option"], .autocomplete-item',
-      ),
-    1200,
-    100,
-  );
+  const option = await waitFor(() => {
+    const needle = normRaw(text).toLowerCase();
+    const options = getVisibleAutocompleteOptions();
+    if (!options.length) return null;
+
+    return (
+      options.find((opt) => getOptionText(opt).toLowerCase() === needle) ||
+      options.find((opt) => getOptionText(opt).toLowerCase().startsWith(needle)) ||
+      options.find((opt) => getOptionText(opt).toLowerCase().includes(needle)) ||
+      options[0]
+    );
+  }, 1800, 100);
 
   if (option) {
-    option.click();
+    clickElement(option);
     return true;
   }
 
-  return false;
+  dispatchKey(el, "Enter");
+  await sleep(150);
+  return normRaw(el.value).toLowerCase() === normRaw(text).toLowerCase();
 }
 
 function getRadioGroups() {
@@ -484,21 +533,7 @@ function clickRadioInGroup(groupIndex, value) {
   return true;
 }
 
-async function fillTextField(keywords, value, label, timeoutMs = 6000) {
-  if (value == null || value === "") return null;
-
-  const field = await waitFor(() => findByLabel(keywords), timeoutMs);
-  if (!field) {
-    console.warn(`⚠️  ${label} -> field not found`);
-    return null;
-  }
-
-  fill(field, value);
-  console.log(`  ✓ ${label.padEnd(32)} -> "${value}"`);
-  return field;
-}
-
-async function waitForAdultTextFields(minCount = 4, timeoutMs = 6000) {
+async function waitForAdultTextFields(minCount = 3, timeoutMs = 6000) {
   return waitFor(() => {
     const fields = getVisibleTextLikeFields();
     return fields.length >= minCount ? fields : null;
@@ -517,15 +552,24 @@ async function fillOrderedTextField({
   value,
   label,
   keywords = [],
+  disallowKeywords = [],
+  exclude = [],
   timeoutMs = 6000,
 }) {
   if (value == null || value === "") return null;
 
   const field = await waitFor(() => {
-    const byLabel = keywords.length ? findByLabel(keywords) : null;
-    if (byLabel) return byLabel;
+    const best = findBestTextField({
+      keywords,
+      disallowKeywords,
+      exclude,
+      preferredIndex: orderIndex,
+    });
+    if (best) return best;
 
-    const fields = getVisibleTextLikeFields();
+    const fields = getVisibleTextLikeFields().filter(
+      (el) => !exclude.filter(Boolean).includes(el),
+    );
     return fields[orderIndex] || null;
   }, timeoutMs);
 
@@ -535,28 +579,6 @@ async function fillOrderedTextField({
   }
 
   return fillFieldElement(field, value, label);
-}
-
-async function fillAssemblyConstituency(value) {
-  if (value == null || value === "") return null;
-
-  const field = await waitFor(() => {
-    return (
-      findByLabel(["assembly constituency", "constituency"]) ||
-      getVisibleTextLikeFields()[4] ||
-      null
-    );
-  }, 6000);
-
-  if (!field) {
-    console.warn("⚠️  Assembly Constituency -> field not found");
-    return null;
-  }
-
-  const picked = await fillSearch(field, value);
-  const shown = picked ? value : `${value} (typed)`;
-  console.log(`  ✓ ${"Assembly Constituency".padEnd(32)} -> "${shown}"`);
-  return field;
 }
 
 async function fillDOB(value) {
@@ -602,6 +624,40 @@ async function selectField(keywords, value, label, extra = {}) {
   return field;
 }
 
+async function fillAssemblyConstituency(value) {
+  if (value == null || value === "") return null;
+
+  const field = await waitFor(() => {
+    return (
+      findBestTextField({
+        keywords: ["assembly constituency", "search constituency", "constituency"],
+        disallowKeywords: ["part no", "aadhaar", "epic", "contact"],
+        preferredIndex: 4,
+      }) ||
+      null
+    );
+  }, 6000);
+
+  if (!field) {
+    console.warn("⚠️  Assembly Constituency -> field not found");
+    return null;
+  }
+
+  const picked = await fillSearch(field, value);
+  const shown = picked ? value : `${value} (typed)`;
+  console.log(`  ✓ ${"Assembly Constituency".padEnd(32)} -> "${shown}"`);
+  return field;
+}
+
+async function waitForVoterBlock(timeoutMs = 4000) {
+  return waitFor(() => {
+    const epicField = findByLabel(["epic no", "epic number", "epic", "voter id", "voter number"]);
+    const constituencyField = findByLabel(["assembly constituency", "search constituency"]);
+    const partField = findByLabel(["part no", "part number"]);
+    return epicField || constituencyField || partField || null;
+  }, timeoutMs);
+}
+
 async function fillAdultMemberPage() {
   const model = getModel();
   const fields = getFields();
@@ -619,7 +675,7 @@ async function fillAdultMemberPage() {
     console.warn(`⚠️  Member Type -> "${memberType}"`);
   }
 
-  await waitForAdultTextFields(4, 6000);
+  await waitForAdultTextFields(3, 6000);
 
   await fillOrderedTextField({
     orderIndex: 0,
@@ -674,31 +730,43 @@ async function fillAdultMemberPage() {
     keywords: ["aadhaar no", "aadhaar number", "aadhar no", "aadhar number", "aadhaar"],
   });
 
-  await fillOrderedTextField({
-    orderIndex: 3,
-    value: normID(model.epic_no),
-    label: "EPIC No",
-    keywords: ["epic no", "epic number", "epic", "voter id", "voter number"],
-    timeoutMs: 3000,
-  });
+  const adultByDOB = isAdultByDOB(model.dob);
+  if (adultByDOB === false) {
+    console.log(`  ↷ ${"Voter Details".padEnd(32)} -> skipped (DOB under 18)`);
+  } else {
+    await waitForVoterBlock(4000);
 
-  await fillAssemblyConstituency(normRaw(model.assembly_constituency));
+    await fillOrderedTextField({
+      orderIndex: 3,
+      value: normID(model.epic_no),
+      label: "EPIC No",
+      keywords: ["epic no", "epic number", "epic", "voter id", "voter number"],
+      timeoutMs: 3000,
+    });
 
-  await fillOrderedTextField({
-    orderIndex: 5,
-    value: normRaw(model.constituency_no),
-    label: "Constituency No",
-    keywords: ["constituency no", "assembly no", "no."],
-    timeoutMs: 3000,
-  });
+    await fillAssemblyConstituency(normRaw(model.assembly_constituency));
 
-  await fillOrderedTextField({
-    orderIndex: 6,
-    value: normRaw(model.part_no),
-    label: "Part No",
-    keywords: ["part no", "part number"],
-    timeoutMs: 3000,
-  });
+    await fillOrderedTextField({
+      orderIndex: 5,
+      value: normRaw(model.constituency_no),
+      label: "Constituency No",
+      keywords: ["constituency no", "assembly no", "no."],
+      disallowKeywords: ["part no", "aadhaar", "epic", "contact"],
+      timeoutMs: 3000,
+    });
+
+    await fillOrderedTextField({
+      orderIndex: 6,
+      value: normRaw(model.part_no),
+      label: "Part No",
+      keywords: ["part no", "part number"],
+      timeoutMs: 3000,
+    });
+  }
+
+  if (adultByDOB == null) {
+    console.log(`  ↷ ${"Age Check".padEnd(32)} -> DOB format not parsed; voter fields handled if visible`);
+  }
 
   console.log(
     "%c✅ Done! Check any ⚠️ warnings above.",
@@ -707,4 +775,3 @@ async function fillAdultMemberPage() {
 }
 
 void fillAdultMemberPage();
-```

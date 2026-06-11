@@ -4,8 +4,6 @@
 // ============================================================
 
 const DATA = {
-  // The inspector only exposed "Yes / No" for the two radio groups,
-  // so these are kept generic and filled by visible group order.
   radio_group_1: "No",
   radio_group_2: "No",
 

@@ -4,25 +4,19 @@
 // ============================================================
 
 const DATA = {
-  member_type: "Adult", // adult / child
-  member_name: "kanai kumar", // any case -> auto UPPER CASE
-  relation_with_head: "Father", // father / mother / husband / wife
-  dob: "26/01/2005", // DD/MM/YYYY or YYYY-MM-DD
-  gender: "male", // male / female / other
-  category: "ur", // ur / ews / sc / st
-  religion: "hindu", // hindu / islam / christian / buddhist
+  member_type: "Adult",
+  member_name: "kanai kumar", 
+  relation_with_head: "Father",
+  dob: "26/01/2005", 
+  gender: "male", 
+  category: "ur",
+  religion: "hindu",
   mobile: "8509546605",
-
-  // Inspector only exposed "Yes / No" here, not the actual question text.
-  // Keep this flexible; you can also use radio_group_1 / mobile_radio aliases.
-  yes_no_after_mobile: "No",
-
-  aadhaar: "221373659682", // spaces ok, auto-stripped
-
-  // These are only needed when DOB is 18+ and the voter block appears.
-  epic_no: "RJR98432", // auto UPPER CASE
-  assembly_constituency: "285", // e.g. 1 - Mekliganj
-  constituency_no: "", // field near label/placeholder "No."
+  yes_no_after_mobile: "No", // disability 
+  aadhaar: "221373659682", 
+  epic_no: "RJR98432", 
+  assembly_constituency: "285", 
+  constituency_no: "", 
   part_no: "",
 };
 

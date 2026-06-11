@@ -3,30 +3,28 @@
 // Paste entire script in DevTools Console → Enter
 // ============================================================
 
-// ─── YOUR DATA — type casually, all lowercase is fine ────────
 const DATA = {
-  hof_name: "kanai kumar", // any case → auto UPPER CASE
-  dob: "26/01/2005", // any format: 20/11/1999 or 1999-11-20
-  gender: "male", // male / female / other
-  category: "ur", // ur/gen → UR (Unreserved), sc, st, obc-a, obc-b
-  religion: "hindu", // hindu / islam / christian etc
+  hof_name: "kanai kumar", 
+  dob: "26/01/2005", 
+  gender: "male", 
+  category: "ur", 
+  religion: "hindu", 
   mobile: "8509546605",
   total_members: "4",
-  disability: "n", // y/yes/n/no
-  aadhaar: "221373659682", // spaces ok, auto-stripped
+  disability: "n", 
+  aadhaar: "221373659682", 
   address: "chinpai, birbhum",
   district: "birbhum",
-  area_type: "r", // r/rural/u/urban
+  area_type: "r", 
   pincode: "731104",
-  post_office: "Chinpai BO", // new added
+  post_office: "Chinpai BO", 
   police_station: "sadaipur ps",
-  block_mc_name: "dubrajpur", // new added
-  gp_ward_name: "chinpai", // new added
-  epic_no: "rjr1830565", // auto UPPER CASE
+  block_mc_name: "dubrajpur", 
+  gp_ward_name: "chinpai", 
+  epic_no: "rjr1830565", 
   constituency: "285 - Suri",
   part_no: "",
 };
-// ─────────────────────────────────────────────────────────────
 
 // ── Normalizers ───────────────────────────────────────────────
 function normName(s) {

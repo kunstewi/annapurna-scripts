@@ -4,23 +4,15 @@
 // ============================================================
 
 const DATA = {
-  // Known group: choosing "Yes" reveals PAN No. *
   has_pan_card: "Yes",
   pan_number: "ABCDE1234F",
-
-  // Inspector only exposed generic Yes / No for the other radio groups,
-  // so these are filled by visible group order on the page.
   radio_group_2: "No",
-
   income_amount_rs: "12000",
-
   occupation_types: [
     "Government Sector",
     "Part-time job",
   ],
-
   highest_educational_qualification: "12th/Uchcha Madhyamik",
-
   radio_group_3: "No",
   radio_group_4: "No",
   radio_group_5: "No",

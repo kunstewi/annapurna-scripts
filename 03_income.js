@@ -4,14 +4,11 @@
 // ============================================================
 
 const DATA = {
-  has_pan_card: "Yes",
-  pan_number: "ABCDE1234F",
-  radio_group_2: "No",
+  professional_tax: "No", 
+  has_pan_card: "Yes", 
+  pan_number: "ABCDE1234F", 
   income_amount_rs: "12000",
-  occupation_types: [
-    "Government Sector",
-    "Part-time job",
-  ],
+  occupation_types: ["Part-time job"],
   highest_educational_qualification: "12th/Uchcha Madhyamik",
   radio_group_3: "No",
   radio_group_4: "No",
@@ -61,9 +58,9 @@ function normList(value) {
 }
 
 function getFields() {
-  return Array.from(document.querySelectorAll("input, select, textarea")).filter(
-    (el) => el.getBoundingClientRect().height > 0,
-  );
+  return Array.from(
+    document.querySelectorAll("input, select, textarea"),
+  ).filter((el) => el.getBoundingClientRect().height > 0);
 }
 
 function getVisibleInputs(selector) {
@@ -79,7 +76,11 @@ function getVisibleSelects() {
 function getOptionTexts(el) {
   if (!el || el.tagName !== "SELECT") return [];
   return Array.from(el.options)
-    .map((option) => String(option.text || "").trim().toLowerCase())
+    .map((option) =>
+      String(option.text || "")
+        .trim()
+        .toLowerCase(),
+    )
     .filter(Boolean);
 }
 
@@ -147,6 +148,45 @@ function findByLabel(keywords, type = null) {
   return null;
 }
 
+// --- NEW: dedicated PAN field finder ---
+// The PAN input has no name/id/placeholder, and its <label> sits in the
+// grandparent div (sibling of the input's wrapping .relative div), so
+// extractLabel()'s closest("div") logic misses it.
+function findPANField() {
+  const textInputs = getVisibleInputs('input[type="text"]');
+
+  // Primary: walk up to grandparent and look for a label containing "pan"
+  for (const el of textInputs) {
+    const grandparent = el.parentElement?.parentElement;
+    const label = grandparent?.querySelector("label");
+    if (label && label.textContent.toLowerCase().includes("pan")) {
+      return el;
+    }
+  }
+
+  // Fallback: PAN inputs are uppercase text inputs with maxlength=10
+  return (
+    textInputs.find(
+      (el) => el.maxLength === 10 && el.className.includes("uppercase"),
+    ) || null
+  );
+}
+
+async function fillPANField(value) {
+  if (value == null || value === "") return null;
+
+  const field = await waitFor(() => findPANField(), 8000);
+  if (!field) {
+    console.warn("⚠️  PAN Number -> field not found");
+    return null;
+  }
+
+  fill(field, value);
+  console.log(`  ✓ ${"PAN Number".padEnd(32)} -> "${value}"`);
+  return field;
+}
+// --- END NEW ---
+
 function selectOption(el, text) {
   if (!el || !text || el.tagName !== "SELECT") return false;
 
@@ -196,7 +236,9 @@ async function waitForAnySelectReady(timeoutMs = 10000) {
 }
 
 function findSelectByOptionText(keywords) {
-  const wanted = keywords.map((k) => String(k).trim().toLowerCase()).filter(Boolean);
+  const wanted = keywords
+    .map((k) => String(k).trim().toLowerCase())
+    .filter(Boolean);
   if (!wanted.length) return null;
 
   const readySelects = getVisibleSelects().filter((el) => hasUsableOptions(el));
@@ -205,7 +247,9 @@ function findSelectByOptionText(keywords) {
 
   for (const select of readySelects) {
     const optionBlob = getOptionTexts(select).join(" ");
-    const score = wanted.filter((keyword) => optionBlob.includes(keyword)).length;
+    const score = wanted.filter((keyword) =>
+      optionBlob.includes(keyword),
+    ).length;
     if (score > bestScore) {
       bestScore = score;
       bestMatch = select;
@@ -254,15 +298,14 @@ function clickRadioInGroup(groupIndex, value) {
     const aria = String(radio.getAttribute("aria-label") || "").toLowerCase();
     const rawValue = String(radio.value || "").toLowerCase();
     return (
-      labelText.includes(wanted) ||
-      aria.includes(wanted) ||
-      rawValue === wanted
+      labelText.includes(wanted) || aria.includes(wanted) || rawValue === wanted
     );
   });
 
   const fallback =
-    group.find((radio) => extractLabel(radio).toLowerCase().startsWith(wanted)) ||
-    (wanted === "yes" ? group[0] : group[group.length - 1]);
+    group.find((radio) =>
+      extractLabel(radio).toLowerCase().startsWith(wanted),
+    ) || (wanted === "yes" ? group[0] : group[group.length - 1]);
 
   const target = match || fallback;
   if (!target) return false;
@@ -319,9 +362,7 @@ function syncOccupationCheckboxes(values) {
   );
 
   if (missing.length) {
-    console.warn(
-      `⚠️  Occupation option(s) not found: ${missing.join(", ")}`,
-    );
+    console.warn(`⚠️  Occupation option(s) not found: ${missing.join(", ")}`);
   }
 
   console.log(
@@ -401,23 +442,22 @@ async function fillIncomePage() {
     "color:#2e7d32;font-weight:bold;font-size:13px",
   );
 
+  // Radio group 0 (fields 00/01) — Professional Tax
+  const profTax = normYesNo(DATA.professional_tax);
+  if (clickRadioInGroup(0, profTax)) {
+    console.log(`  ✓ ${"Professional Tax".padEnd(32)} -> "${profTax}"`);
+  }
+
+  // Radio group 1 (fields 02/03) — Has PAN Card
   const panChoice = normYesNo(DATA.has_pan_card);
-  if (clickRadioInGroup(0, panChoice)) {
+  if (clickRadioInGroup(1, panChoice)) {
     console.log(`  ✓ ${"Has PAN Card".padEnd(32)} -> "${panChoice}"`);
   }
 
+  // If "Yes", the PAN field appears dynamically — wait for it, then fill
   if (panChoice === "Yes") {
-    await fillTextField(
-      ["pan no", "pan number", "pan"],
-      normPAN(DATA.pan_number),
-      "PAN Number",
-      8000,
-    );
-  }
-
-  const radio2 = normYesNo(DATA.radio_group_2);
-  if (clickRadioInGroup(1, radio2)) {
-    console.log(`  ✓ ${"Radio Group 2".padEnd(32)} -> "${radio2}"`);
+    await sleep(300);
+    await fillPANField(normPAN(DATA.pan_number));
   }
 
   await fillIncomeAmount(normRaw(DATA.income_amount_rs));
@@ -439,6 +479,7 @@ async function fillIncomePage() {
     },
   );
 
+  // Radio groups 2,3,4 (fields 15-20)
   const trailingGroups = [
     ["Radio Group 3", DATA.radio_group_3],
     ["Radio Group 4", DATA.radio_group_4],

@@ -4,17 +4,15 @@
 // ============================================================
 
 const DATA = {
-  radio_group_1: "No",
-  radio_group_2: "No",
-
-  total_landholding: "",
+  radio_group_1: "No", // 3 pucca room
+  radio_group_2: "No", // land
+  total_landholding: "", // acre multiple by 10, katha to decimal multiple by 6.6
   owns_non_commercial_motorized_vehicle: "No",
-
   has_health_insurance: "Yes",
   insurance_type: "Government",
   government_scheme: "Swasthya Sathi",
-  urn_number: "0293480923849023903248",
-};
+  urn_number: "0928139012839092384",
+};;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

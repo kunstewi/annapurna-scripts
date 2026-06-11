@@ -6,7 +6,7 @@
 const DATA = {
   member_type: "Adult",
   member_name: "kanai kumar", 
-  relation_with_head: "Father",
+  relation_with_head: "Grandson",
   dob: "26/01/2005", 
   gender: "male", 
   category: "ur",
@@ -16,7 +16,7 @@ const DATA = {
   aadhaar: "221373659682", 
   epic_no: "RJR98432", 
   assembly_constituency: "285", 
-  constituency_no: "", 
+  constituency_no: "285", 
   part_no: "",
 };
 

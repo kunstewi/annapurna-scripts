@@ -4,15 +4,15 @@
 // ============================================================
 
 const DATA = {
-  hof_name: "kanai kumar", 
+  hof_name: "sekhh ohab", 
   dob: "26/01/2005", 
   gender: "male", 
   category: "ur", 
-  religion: "hindu", 
-  mobile: "8509546605",
+  religion: "islam", 
+  mobile: "6296023377",
   total_members: "4",
   disability: "n", 
-  aadhaar: "221373659682", 
+  aadhaar: "368429389655", 
   address: "chinpai, birbhum",
   district: "birbhum",
   area_type: "r", 
@@ -21,8 +21,8 @@ const DATA = {
   police_station: "sadaipur ps",
   block_mc_name: "dubrajpur", 
   gp_ward_name: "chinpai", 
-  epic_no: "rjr1830565", 
-  constituency: "285 - Suri",
+  epic_no: "rjr2918589", 
+  constituency: "285",
   part_no: "",
 };
 
